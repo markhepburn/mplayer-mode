@@ -164,7 +164,7 @@
   (define-key map (kbd "<right>") 'mplayer-seek-forward)
   (define-key map (kbd "<left>")  'mplayer-seek-backward)
   (define-key map (kbd "d")       'mplayer-toggle-osd)
-  (define-key map (kbd "t")       'mplayer-insert-timestamp)
+  (define-key map (kbd "i")       'mplayer-insert-timestamp)
   (define-key map (kbd "q")       'mplayer-quit-mplayer)
 
   (define-key mplayer-mode-map mplayer-prefix-command map))
