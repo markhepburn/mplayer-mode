@@ -127,14 +127,19 @@
 (defun mplayer-insert-timestamp ()
   (interactive)
   (let (time)
-    (mplayer--send "get_time_pos")
-    (with-current-buffer mplayer-process-buffer
-      (goto-char (point-max))
-      (search-backward-regexp "^ANS_TIME_POSITION=\\(.*\\)$" 0 t)
-      (setq time (match-string 1)))
-    (if time
-        (insert (mplayer--format-time time))
-      (message "MPlayer: couldn't detect current time."))))
+    (set-process-filter
+     mplayer-process
+     ;; wait for output, process, and remove filter:
+     (lambda (process output)
+       (message "process: %s output: %s" process output)
+       (string-match "^ANS_TIME_POSITION=\\(.*\\)$" output)
+       (setq time (match-string 1 output))
+       (if time
+           (insert (mplayer--format-time time))
+         (message "MPlayer: couldn't detect current time."))
+       (set-process-filter mplayer-process nil)))
+    ;; Then send the command:
+    (mplayer--send "get_time_pos")))
 
 (defun mplayer-quit-mplayer ()
   (interactive)
