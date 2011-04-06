@@ -144,7 +144,11 @@
 
 (defun mplayer-quit-mplayer ()
   (interactive)
-  (mplayer--send "quit"))
+  (mplayer--send "quit")
+  (set-process-filter
+   mplayer-process
+   (lambda (process output)
+     (kill-buffer mplayer-process-buffer))))
 
 ;;; Mode setup:
 
