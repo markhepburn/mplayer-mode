@@ -159,7 +159,7 @@
   (setq mplayer-mode-map (make-sparse-keymap)))
 
 (let ((map (make-sparse-keymap)))
-  (define-key map (kbd "f")       'mplayer-find-file)
+  ;; (define-key map (kbd "f")       'mplayer-find-file)
   (define-key map (kbd "SPC")     'mplayer-toggle-pause)
   (define-key map (kbd "<right>") 'mplayer-seek-forward)
   (define-key map (kbd "<left>")  'mplayer-seek-backward)
