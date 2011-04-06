@@ -103,7 +103,8 @@
        (start-process "mplayer" mplayer-process-buffer
                       mplayer-executable
                       "-quiet" "-slave"
-                      filename)))
+                      filename))
+  (mplayer-mode t))
 
 (defun mplayer-toggle-pause ()
   (interactive)
@@ -149,7 +150,8 @@
   (set-process-filter
    mplayer-process
    (lambda (process output)
-     (kill-buffer mplayer-process-buffer))))
+     (kill-buffer mplayer-process-buffer)))
+  (mplayer-mode nil))
 
 ;;; Mode setup:
 
