@@ -44,29 +44,30 @@
 
 ;;; TODO:
 ;; - Proper org-mode integration would probably be nice (eg, a link to the file)
+;; - Error handling and clean-up
 
 ;;; Code:
 
 (defvar mplayer-executable "mplayer"
   "Name or path to the mplayer executable")
 
+;; (defvar mplayer-process nil
+;;   "The process controlling mplayer")
+
 (defvar mplayer-mode-map nil
   "Local keymap for mplayer-minor-mode")
-
-(defvar mplayer-process nil
-  "The process controlling mplayer")
-
-(defvar mplayer-default-seek-step 10
-  "The number of seconds that the skip command will use.")
 
 (defvar mplayer-prefix-command (kbd "C-x SPC")
   "The prefix for all mplayer minor-mode commands")
 
+(defvar mplayer-default-seek-step 10
+  "The number of seconds that the skip command will use.")
+
 (defvar mplayer-osd-level 3
   "OSD level used by mplayer.  3 (the default) means position/length.")
 
-(defvar mplayer-process-buffer nil
-  "Buffer used for communication with the mplayer process.")
+;; (defvar mplayer-process-buffer nil
+;;   "Buffer used for communication with the mplayer process.")
 
 (defvar mplayer-timestamp-format "%H:%M:%S"
   "Format used for inserting timestamps.")
@@ -95,6 +96,7 @@
 
 (defun mplayer-find-file (filename)
   (interactive "fOpen movie file: ")
+  (set (make-local-variable 'mplayer--osd-enabled) nil)
   (set (make-local-variable 'mplayer-process-buffer) (generate-new-buffer "*mplayer*"))
   (set (make-local-variable 'mplayer-process)
        (start-process "mplayer" mplayer-process-buffer
@@ -116,7 +118,6 @@
   (let ((seconds (- (mplayer--parse-seconds seconds))))
     (mplayer--send (format "seek %d 0" seconds))))
 
-(set (make-local-variable 'mplayer--osd-enabled) nil)
 (defun mplayer-toggle-osd ()
   (interactive)
   (if mplayer--osd-enabled
