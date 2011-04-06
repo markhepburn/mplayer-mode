@@ -1,7 +1,7 @@
 ;;; mplayer-minor-mod.el - GNU Emacs mode to control mplayer, mainly
 ;;; to facilitate transcription and note-taking.
 
-;; Copyright (C) 2007 Free Software Foundation, Inc.
+;; Copyright (C) 2011 Mark Hepburn
 
 ;; Author: Mark Hepburn (mark.hepburn@gmail.com)
 ;; Compatibility: Emacs20, Emacs21, Emacs22, Emacs23
@@ -24,11 +24,13 @@
 ;; Boston, MA 02110-1301, USA.
 
 ;;; Commentary:
-;; Owes a lot, in idea and execution, to the emacs video editor gneve
+;; Owes a lot in initial idea to the emacs video editor gneve
 ;; (http://www.1010.co.uk/gneve.html).  This mode controls mplayer
 ;; directly, using its slave-mode (see
-;; http://www.mplayerhq.hu/DOCS/tech/slave.txt), which allows commands
-;; on stdin.
+;; http://www.mplayerhq.hu/DOCS/tech/slave.txt), which accepts
+;; commands on stdin.  The original motivation was to facilitate note
+;; taking from videos; hence it is possible to pause, skip backwards
+;; and forwards, and insert a timestamp of the current position.
 
 ;;; Use: 
 
@@ -52,9 +54,6 @@
 (defvar mplayer-executable "mplayer"
   "Name or path to the mplayer executable")
 
-;; (defvar mplayer-process nil
-;;   "The process controlling mplayer")
-
 (defvar mplayer-mode-map nil
   "Local keymap for mplayer-minor-mode")
 
@@ -66,9 +65,6 @@
 
 (defvar mplayer-osd-level 3
   "OSD level used by mplayer.  3 (the default) means position/length.")
-
-;; (defvar mplayer-process-buffer nil
-;;   "Buffer used for communication with the mplayer process.")
 
 (defvar mplayer-timestamp-format "%H:%M:%S"
   "Format used for inserting timestamps.")
@@ -87,6 +83,9 @@
     (* mplayer-default-seek-step (log (abs (car seconds)) 4)))))
 
 (defun mplayer--format-time (time)
+  "Return a formatted time string, using the format string
+`mplayer-timestamp-format'.  The argument is in seconds, and
+can be an integer or a string."
   (message "format-time: %s" time)
   (if (stringp time)
       (setq time (round (string-to-number time))))
@@ -96,6 +95,9 @@
 ;;; Interactive Commands:
 
 (defun mplayer-find-file (filename)
+  "Entry point to this mode.  Starts playing the file using
+mplayer, and enables some keybindings to support it; see the
+documentation for `mplayer-mode' for available bindings."
   (interactive "fOpen movie file: ")
   (set (make-local-variable 'mplayer--osd-enabled) nil)
   (set (make-local-variable 'mplayer-process-buffer) (generate-new-buffer "*mplayer*"))
@@ -107,20 +109,31 @@
   (mplayer-mode t))
 
 (defun mplayer-toggle-pause ()
+  "Pause or play the currently-open movie."
   (interactive)
   (mplayer--send "pause"))
 
 (defun mplayer-seek-forward (seconds)
+  "Skip forward in the movie.  By default this is
+`mplayer-default-seek-step' seconds; it can also be specified as
+a numeric prefix arg, or plain prefix args act as a
+successive (linear) multipliers of `mplayer-default-seek-step'."
   (interactive "P")
   (let ((seconds (mplayer--parse-seconds seconds)))
     (mplayer--send (format "seek %d 0" seconds))))
 
 (defun mplayer-seek-backward (seconds)
+  "Skip backward in the movie.  By default this is
+`mplayer-default-seek-step' seconds; it can also be specified as
+a numeric prefix arg, or plain prefix args act as a
+successive (linear) multipliers of `mplayer-default-seek-step'."
   (interactive "P")
   (let ((seconds (- (mplayer--parse-seconds seconds))))
     (mplayer--send (format "seek %d 0" seconds))))
 
 (defun mplayer-toggle-osd ()
+  "Toggle on-screen display on or off.  See `mplayer-osd-level'
+for the type of display."
   (interactive)
   (if mplayer--osd-enabled
       (mplayer--send "osd")
@@ -128,6 +141,9 @@
   (setq mplayer--osd-enabled (not mplayer--osd-enabled)))
 
 (defun mplayer-insert-timestamp ()
+  "Insert a time-stamp of the current movie position in the
+buffer.  See `mplayer-timestamp-format' for the insertion
+format."
   (interactive)
   (let (time)
     (set-process-filter
@@ -145,6 +161,7 @@
     (mplayer--send "get_time_pos")))
 
 (defun mplayer-quit-mplayer ()
+  "Quit mplayer and exit this mode."
   (interactive)
   (mplayer--send "quit")
   (set-process-filter
@@ -172,7 +189,9 @@
 (define-minor-mode mplayer-mode
   "Control mplayer from within Emacs.  Mainly intended for
 transcription purposes, so commands exist to pause, seek, and
-insert the current time as a timestamp:
+insert the current time as a timestamp.  This mode should not be
+invoked directly; see `mplayer-find-file' and
+`mplayer-quit-mplayer' for the entry and exit points.
 
 Key bindings:
 \\{mplayer-mode-map}"
