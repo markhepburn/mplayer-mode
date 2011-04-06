@@ -1,4 +1,5 @@
-;;; mplayer-minor-mod.el - GNU Emacs mode to control mplayer, mainly to facilitate transcription and note-taking.
+;;; mplayer-minor-mod.el - GNU Emacs mode to control mplayer, mainly
+;;; to facilitate transcription and note-taking.
 
 ;; Copyright (C) 2007 Free Software Foundation, Inc.
 
