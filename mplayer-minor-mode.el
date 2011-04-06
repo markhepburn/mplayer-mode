@@ -175,7 +175,7 @@ insert the current time as a timestamp:
 Key bindings:
 \\{mplayer-mode-map}"
   nil                                   ; initial value
-  "MPlayer"                             ; mode-line string
+  " MPlayer"                            ; mode-line string
   mplayer-mode-map)
 
 (provide 'mplayer)
