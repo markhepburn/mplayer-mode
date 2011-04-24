@@ -1,4 +1,4 @@
-;;; mplayer-minor-mod.el - GNU Emacs mode to control mplayer, mainly
+;;; mplayer-mode.el - GNU Emacs mode to control mplayer, mainly
 ;;; to facilitate transcription and note-taking.
 
 ;; Copyright (C) 2011 Mark Hepburn
@@ -38,7 +38,7 @@
 
 ;; Put something similar to the following in your ~/.emacs to use this file:
 ;;
-;; (load "~/path/to/mplayer-minor-mode.el")
+;; (load "~/path/to/mplayer-mode.el")
 ;;
 
 ;;; Dependency:
@@ -55,7 +55,7 @@
   "Name or path to the mplayer executable")
 
 (defvar mplayer-mode-map nil
-  "Local keymap for mplayer-minor-mode")
+  "Local keymap for mplayer-mode")
 
 (defvar mplayer-prefix-command (kbd "C-x SPC")
   "The prefix for all mplayer minor-mode commands")
@@ -199,4 +199,4 @@ Key bindings:
   " MPlayer"                            ; mode-line string
   mplayer-mode-map)
 
-(provide 'mplayer)
+(provide 'mplayer-mode)
