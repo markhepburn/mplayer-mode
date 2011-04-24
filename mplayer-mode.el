@@ -57,6 +57,9 @@
 (defvar mplayer-mode-map nil
   "Local keymap for mplayer-mode")
 
+;;; This prefix is chosen for ergonomic accessibility; it does ignore
+;;; the recomendations about C-x being for global combinations, etc,
+;;; so change if it's inconvenient.
 (defvar mplayer-prefix-command (kbd "C-x SPC")
   "The prefix for all mplayer minor-mode commands")
 
