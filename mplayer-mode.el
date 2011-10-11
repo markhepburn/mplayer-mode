@@ -101,7 +101,7 @@ can be an integer or a string."
   "Entry point to this mode.  Starts playing the file using
 mplayer, and enables some keybindings to support it; see the
 documentation for `mplayer-mode' for available bindings."
-  (interactive "fOpen movie file: ")
+  (interactive "fOpen recording file: ")
   (set (make-local-variable 'mplayer--osd-enabled) nil)
   (set (make-local-variable 'mplayer-process-buffer) (generate-new-buffer "*mplayer*"))
   (set (make-local-variable 'mplayer-process)
@@ -112,12 +112,12 @@ documentation for `mplayer-mode' for available bindings."
   (mplayer-mode t))
 
 (defun mplayer-toggle-pause ()
-  "Pause or play the currently-open movie."
+  "Pause or play the currently-open recording."
   (interactive)
   (mplayer--send "pause"))
 
 (defun mplayer-seek-forward (seconds)
-  "Skip forward in the movie.  By default this is
+  "Skip forward in the recording.  By default this is
 `mplayer-default-seek-step' seconds; it can also be specified as
 a numeric prefix arg, or plain prefix args act as a
 successive (linear) multipliers of `mplayer-default-seek-step'."
@@ -126,7 +126,7 @@ successive (linear) multipliers of `mplayer-default-seek-step'."
     (mplayer--send (format "seek %d 0" seconds))))
 
 (defun mplayer-seek-backward (seconds)
-  "Skip backward in the movie.  By default this is
+  "Skip backward in the recording.  By default this is
 `mplayer-default-seek-step' seconds; it can also be specified as
 a numeric prefix arg, or plain prefix args act as a
 successive (linear) multipliers of `mplayer-default-seek-step'."
@@ -144,7 +144,7 @@ for the type of display."
   (setq mplayer--osd-enabled (not mplayer--osd-enabled)))
 
 (defun mplayer-insert-timestamp ()
-  "Insert a time-stamp of the current movie position in the
+  "Insert a time-stamp of the current recording position in the
 buffer.  See `mplayer-timestamp-format' for the insertion
 format."
   (interactive)
@@ -162,6 +162,32 @@ format."
        (set-process-filter mplayer-process nil)))
     ;; Then send the command:
     (mplayer--send "get_time_pos")))
+
+(defun mplayer-insert-position ()
+  "Insert the current recording position in seconds, 
+into the buffer."
+  (interactive)
+  (let (time)
+    (set-process-filter
+     mplayer-process
+     ;; wait for output, process, and remove filter:
+     (lambda (process output)
+       (message "process: %s output: %s" process output)
+       (string-match "^ANS_TIME_POSITION=\\(.*\\)$" output)
+       (setq time (match-string 1 output))
+       (if time
+           (insert time)
+         (message "MPlayer: couldn't detect current time."))
+       (set-process-filter mplayer-process nil)))
+    ;; Then send the command:
+    (mplayer--send "get_time_pos")))
+
+(defun mplayer-seek-position (position)
+  "Seek to some place in the recording."
+  ;; (interactive "P")
+  (interactive "nEnter seek position: ")
+  ;; (message "Seeking to position: %n" position)
+    (mplayer--send (format "seek %d 2" position)))
 
 (defun mplayer-quit-mplayer ()
   "Quit mplayer and exit this mode."
@@ -183,6 +209,8 @@ format."
   (define-key map (kbd "SPC")     'mplayer-toggle-pause)
   (define-key map (kbd "<right>") 'mplayer-seek-forward)
   (define-key map (kbd "<left>")  'mplayer-seek-backward)
+  (define-key map (kbd "p")       'mplayer-seek-position)
+  (define-key map (kbd "t")       'mplayer-insert-position)
   (define-key map (kbd "d")       'mplayer-toggle-osd)
   (define-key map (kbd "i")       'mplayer-insert-timestamp)
   (define-key map (kbd "q")       'mplayer-quit-mplayer)
