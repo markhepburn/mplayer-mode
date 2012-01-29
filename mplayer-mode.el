@@ -1,5 +1,4 @@
-;;; mplayer-mode.el --- GNU Emacs mode to control mplayer, mainly
-;;; to facilitate transcription and note-taking.
+;;; mplayer-mode.el --- control mplayer, facilitating transcription and note-taking.
 
 ;; Copyright (C) 2011 Mark Hepburn
 
