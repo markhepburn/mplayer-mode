@@ -31,7 +31,7 @@
 ;; taking from videos; hence it is possible to pause, skip backwards
 ;; and forwards, and insert a timestamp of the current position.
 
-;;; Use: 
+;;; Use:
 
 ;;; Install:
 
@@ -49,6 +49,10 @@
 ;; - Error handling and clean-up
 
 ;;; Code:
+
+(defgroup mplayer nil
+  "Group used to store various mplayer-mode variables.")
+
 
 (defvar mplayer-executable "mplayer"
   "Name or path to the mplayer executable")
@@ -163,7 +167,7 @@ format."
     (mplayer--send "get_time_pos")))
 
 (defun mplayer-insert-position ()
-  "Insert the current recording position in seconds, 
+  "Insert the current recording position in seconds,
 into the buffer."
   (interactive)
   (let (time)
