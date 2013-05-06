@@ -54,8 +54,10 @@
   "Group used to store various mplayer-mode variables.")
 
 
-(defvar mplayer-executable "mplayer"
-  "Name or path to the mplayer executable")
+(defcustom mplayer-executable "mplayer"
+  "Name or path to the mplayer executable."
+  :type 'file
+  :group 'mplayer)
 
 (defvar mplayer-mode-map nil
   "Local keymap for mplayer-mode")
@@ -63,17 +65,25 @@
 ;;; This prefix is chosen for ergonomic accessibility; it does ignore
 ;;; the recomendations about C-x being for global combinations, etc,
 ;;; so change if it's inconvenient.
-(defvar mplayer-prefix-command (kbd "C-x SPC")
-  "The prefix for all mplayer minor-mode commands")
+(defcustom mplayer-prefix-command "\C-x "
+  "The prefix for all mplayer minor-mode commands. Default C-x SPC."
+  :type 'key-sequence
+  :group 'mplayer)
 
-(defvar mplayer-default-seek-step 10
-  "The number of seconds that the skip command will use.")
+(defcustom mplayer-default-seek-step 10
+  "The number of seconds that the skip command will use."
+  :type 'integer
+  :group 'mplayer)
 
-(defvar mplayer-osd-level 3
-  "OSD level used by mplayer.  3 (the default) means position/length.")
+(defcustom mplayer-osd-level 3
+  "OSD level used by mplayer.  3 (the default) means position/length."
+  :type 'integer
+  :group 'mplayer)
 
-(defvar mplayer-timestamp-format "%H:%M:%S"
-  "Format used for inserting timestamps.")
+(defcustom mplayer-timestamp-format "%H:%M:%S"
+  "Format used for inserting timestamps."
+  :type 'string
+  :group 'mplayer)
 
 
 ;;; Utilities:
