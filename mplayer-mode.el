@@ -75,6 +75,11 @@
   :type 'integer
   :group 'mplayer)
 
+(defcustom mplayer-default-speed-step 10
+  "The increase/decrease of playback speed that the faster/slower commands will use (percent of standard playback speed)."
+  :type 'integer
+  :group 'mplayer)
+
 (defcustom mplayer-osd-level 3
   "OSD level used by mplayer.  3 (the default) means position/length."
   :type 'integer
@@ -97,6 +102,13 @@
    ((numberp seconds) seconds)
    ((listp seconds)
     (* mplayer-default-seek-step (log (abs (car seconds)) 4)))))
+
+(defun mplayer--parse-speedstep (speedstep)
+  (cond
+   ((null speedstep) (/ mplayer-default-speed-step 100.0))
+   ((numberp speedstep) (/ speedstep 100.0))
+   ((listp speedstep)
+    (/ (* mplayer-default-speed-step (+ 1 (log (abs (car speedstep)) 4))) 100.0))))
 
 (defun mplayer--format-time (time)
   "Return a formatted time string, using the format string
@@ -146,6 +158,23 @@ successive (linear) multipliers of `mplayer-default-seek-step'."
   (interactive "P")
   (let ((seconds (- (mplayer--parse-seconds seconds))))
     (mplayer--send (format "seek %d 0" seconds))))
+
+(defun mplayer-faster (speedstep)
+  "Increase playback speed. By default by `mplayer-default-speed-step' percentage points; it can also be set with a numeric prefix arg, or plain prefix args acts as successive multipliers (2,3,4...) of `mplayer-default-speed-step'"
+  (interactive "P")
+  (let ((speedstep (mplayer--parse-speedstep speedstep)))
+    (mplayer--send (format "speed_incr %.2f" speedstep))))
+
+(defun mplayer-slower (speedstep)
+  "Decreaser playback speed. By default by `mplayer-default-speed-step' percentage points; it can also be set with a numeric prefix arg, or plain prefix args acts as successive multipliers (2,3,4...) of `mplayer-default-speed-step'"
+  (interactive "P")
+  (let ((speedstep (mplayer--parse-speedstep speedstep)))
+    (mplayer--send (format "speed_incr -%.2f" speedstep))))
+
+(defun mplayer-reset-speed ()
+  "Reset playback speed."
+  (interactive)
+  (mplayer--send "speed_set 1"))
 
 (defun mplayer-toggle-osd ()
   "Toggle on-screen display on or off.  See `mplayer-osd-level'
@@ -222,6 +251,9 @@ into the buffer."
   (define-key map (kbd "SPC")     'mplayer-toggle-pause)
   (define-key map (kbd "<right>") 'mplayer-seek-forward)
   (define-key map (kbd "<left>")  'mplayer-seek-backward)
+  (define-key map (kbd "f")       'mplayer-faster)
+  (define-key map (kbd "s")       'mplayer-slower)
+  (define-key map (kbd "r")       'mplayer-reset-speed)
   (define-key map (kbd "p")       'mplayer-seek-position)
   (define-key map (kbd "t")       'mplayer-insert-position)
   (define-key map (kbd "d")       'mplayer-toggle-osd)
@@ -232,7 +264,7 @@ into the buffer."
 
 (define-minor-mode mplayer-mode
   "Control mplayer from within Emacs.  Mainly intended for
-transcription purposes, so commands exist to pause, seek, and
+transcription purposes, so commands exist to pause, seek, set playback speed, and
 insert the current time as a timestamp.  This mode should not be
 invoked directly; see `mplayer-find-file' and
 `mplayer-quit-mplayer' for the entry and exit points.
