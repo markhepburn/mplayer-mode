@@ -7,9 +7,29 @@
 ;; Compatibility: Emacs20, Emacs21, Emacs22, Emacs23, Emacs24
 
 ;; Improvements by: Karl M. Hegbloom (karl.hegbloom@gmail.com)
+;;
+;; 2015-11-12 Added:
+;;
+;; `mplayer-find-file-at-point'            M-x mplayer-find-file-at-point
+;;
+;; `mplayer-insert-position-and-timestamp' C-x SPC h
+;;
+;; `mplayer-seek-position-at-point'        C-x SPC g
+;;
+;; `mplayer-file-start-offset' buffer-local in seconds since midnight.
+;;
+;; When I do a transcription, I put the audio file's name at the top
+;; of the file, and also a heading, like:
+;;
+;; # -*- mode: text; mplayer-file-start-offset: 40430; -*-
+;;
+;; ... so that the time stamps reflect the actual time of day when the
+;; recording was made. Obviously that only works when you have that
+;; information, as for a court recording.
+
 
 ;; This file is not part of GNU Emacs.
-
+;;
 ;; This is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 3, or (at your option)
