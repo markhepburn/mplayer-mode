@@ -1,9 +1,12 @@
 ;;; mplayer-mode.el --- control mplayer, facilitating transcription and note-taking.
 
 ;; Copyright (C) 2011 Mark Hepburn
+;; Copyright (C) 2015 Karl M. Hegbloom
 
 ;; Author: Mark Hepburn (mark.hepburn@gmail.com)
-;; Compatibility: Emacs20, Emacs21, Emacs22, Emacs23
+;; Compatibility: Emacs20, Emacs21, Emacs22, Emacs23, Emacs24
+
+;; Improvements by: Karl M. Hegbloom (karl.hegbloom@gmail.com)
 
 ;; This file is not part of GNU Emacs.
 
@@ -85,7 +88,7 @@
   :type 'integer
   :group 'mplayer)
 
-(defcustom mplayer-timestamp-format "%H:%M:%S"
+(defcustom mplayer-timestamp-format "[%H:%M:%S.%1N] "
   "Format used for inserting timestamps."
   :type 'string
   :group 'mplayer)
@@ -110,15 +113,38 @@
    ((listp speedstep)
     (/ (* mplayer-default-speed-step (+ 1 (log (abs (car speedstep)) 4))) 100.0))))
 
+(defvar mplayer-file-start-offset 0
+  "Buffer local wall clock offset for start of file, in seconds.")
+(make-variable-buffer-local 'mplayer-file-start-offset)
+
 (defun mplayer--format-time (time)
   "Return a formatted time string, using the format string
 `mplayer-timestamp-format'.  The argument is in seconds, and
-can be an integer or a string."
+can be an integer or a string. If the buffer-local variable
+`mplayer-file-start-offset' is set, that offset is added to
+the argument. Its value must be specified in seconds since
+midnight."
   (message "format-time: %s" time)
   (if (stringp time)
-      (setq time (round (string-to-number time))))
-  (message "time to format: %s" time)
-  (format-time-string mplayer-timestamp-format `(0 ,time 0) t))
+      (setq time (string-to-number time)))
+  (if (stringp mplayer-file-start-offset)
+      (setq mplayer-file-start-offset
+            (string-to-number mplayer-file-start-offset)))
+  (setq time (+ time mplayer-file-start-offset))
+  (message "time to format: %.1f" time)
+  ;; All this truncating and rounding is needed because floating point
+  ;; numbers are not exact, and multiplying by 1000000 amplifies the
+  ;; error, causing the timestamp to end with .6 rather than .7, etc.
+  ;; Multiplying by 10, rounding, then dividing by 10.0 gets it right.
+  (let ((sec (truncate time))
+        (usec (truncate (* 1000000
+                           (/ (round (* 10
+                                        (- time
+                                           (truncate time))))
+                              10.0)))))
+    (format-time-string
+     mplayer-timestamp-format `(0 ,(truncate time) ,usec) t)))
+
 
 ;;; Interactive Commands:
 
@@ -135,6 +161,13 @@ documentation for `mplayer-mode' for available bindings."
                       "-quiet" "-slave"
                       filename))
   (mplayer-mode t))
+
+(defun mplayer-find-file-at-point ()
+  "Start mplayer on the file name at point. Optionally provide
+  base director where the audio file is expected to be located."
+  (interactive)
+  (let ((filename (thing-at-point 'filename)))
+    (mplayer-find-file filename)))
 
 (defun mplayer-toggle-pause ()
   "Pause or play the currently-open recording."
@@ -224,12 +257,60 @@ into the buffer."
     ;; Then send the command:
     (mplayer--send "get_time_pos")))
 
+(defun mplayer-insert-position-and-timestamp ()
+  (interactive)
+  (let (time)
+    (set-process-filter
+     mplayer-process
+     ;; wait for output, process, and remove filter:
+     (lambda (process output)
+       (message "process: %s output: %s" process output)
+       (string-match "^ANS_TIME_POSITION=\\(.*\\)$" output)
+       (setq time (match-string 1 output))
+       (if time
+           (progn
+             (insert "(")
+             (insert time)
+             (insert ")")
+             (insert (mplayer--format-time time)))
+         (message "MPlayer: couldn't detect current time."))
+       (set-process-filter mplayer-process nil)))
+    ;; Then send the command:
+    (mplayer--send "get_time_pos")))
+
 (defun mplayer-seek-position (position)
   "Seek to some place in the recording."
   ;; (interactive "P")
   (interactive "nEnter seek position: ")
-  ;; (message "Seeking to position: %n" position)
-    (mplayer--send (format "seek %d 2" position)))
+  ;; (message "Seeking to position: %d" position)
+    (mplayer--send (format "seek %.1f 2" position)))
+
+;; (bounds-of-thing-at-point 'mplayer-pos)34.9
+;; (thing-at-point 'mplayer-pos)34.9
+
+(put 'mplayer-pos 'bounds-of-thing-at-point
+     (lambda ()
+       (let ((thing (thing-at-point-looking-at "[0-9]+\\.[0-9]" 6)))
+         (if thing
+             (let ((beginning (match-beginning 0))
+                   (end (match-end 0)))
+               (cons beginning end))))))
+
+(put 'mplayer-pos 'thing-at-point
+     (lambda ()
+       (let ((boundary-pair (bounds-of-thing-at-point 'mplayer-pos)))
+         (if boundary-pair
+             (string-to-number
+              (buffer-substring-no-properties
+               (car boundary-pair) (cdr boundary-pair)))))))
+
+
+(defun mplayer-seek-position-at-point ()
+  "Seek to the position represented by the number at point."
+  (interactive)
+  (let ((pos (thing-at-point 'mplayer-pos)))
+    (message "Seeking to position: %.1f" pos)
+    (mplayer--send (format "seek %.1f 2" pos))))
 
 (defun mplayer-quit-mplayer ()
   "Quit mplayer and exit this mode."
@@ -255,9 +336,11 @@ into the buffer."
   (define-key map (kbd "s")       'mplayer-slower)
   (define-key map (kbd "r")       'mplayer-reset-speed)
   (define-key map (kbd "p")       'mplayer-seek-position)
+  (define-key map (kbd "g")       'mplayer-seek-position-at-point)
   (define-key map (kbd "t")       'mplayer-insert-position)
   (define-key map (kbd "d")       'mplayer-toggle-osd)
   (define-key map (kbd "i")       'mplayer-insert-timestamp)
+  (define-key map (kbd "h")       'mplayer-insert-position-and-timestamp)
   (define-key map (kbd "q")       'mplayer-quit-mplayer)
 
   (define-key mplayer-mode-map mplayer-prefix-command map))
