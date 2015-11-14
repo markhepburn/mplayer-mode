@@ -1,12 +1,110 @@
 ;;; mplayer-mode.el --- control mplayer, facilitating transcription and note-taking.
 
 ;; Copyright (C) 2011 Mark Hepburn
+;; Copyright (C) 2015 Karl M. Hegbloom
 
 ;; Author: Mark Hepburn (mark.hepburn@gmail.com)
-;; Compatibility: Emacs20, Emacs21, Emacs22, Emacs23
+;; Compatibility: Emacs20, Emacs21, Emacs22, Emacs23, Emacs24
+
+;; Improvements by: Karl M. Hegbloom (karl.hegbloom@gmail.com)
+;;
+;; 2015-11-12 Added:
+;;
+;; `mplayer-find-file-at-point'            M-x mplayer-find-file-at-point
+;;
+;; `mplayer-insert-position-and-timestamp' C-x SPC h
+;;
+;; `mplayer-seek-position-at-point'        C-x SPC g
+;;
+;; `mplayer-file-start-offset' buffer-local in seconds since midnight.
+;;
+;; When I do a transcription, I put the audio file's name at the top
+;; of the file, and also a heading, like:
+;;
+;; # -*- mode: text; mplayer-file-start-offset: 40430; -*-
+;;
+;; ... so that the time stamps reflect the actual time of day when the
+;; recording was made. Obviously that only works when you have that
+;; information, as for a court recording.
+;;
+;; Suggestions for using this mode:
+;;
+;; In my .emacs, I have:
+;;
+;; (autoload 'mplayer-find-file "mplayer-mode" "Control mplayer from within Emacs")
+;; (autoload 'mplayer-find-file-at-point "mplayer-mode" "Control mplayer from within Emacs")
+;; (require 'mplayer-mode)
+;; (fset 'mplayer-jump-to-start-of-this-block
+;;    [?\C-\M-r ?\( ?\[ ?0 ?- ?9 ?\] right ?\C-x ?  ?g ?\C-u ?\C- ])
+;; (define-key text-mode-map (kbd "<f11>") #'mplayer-jump-to-start-of-this-block)
+;;
+;; I would have created an interactive function for the jump to start
+;; of block, except that the format of a "position" is configurable,
+;; so I could not hard-code the isearch backward regexp expression
+;; this macro uses.
+;;
+;; When I open a new transcription file, I insert the mode heading,
+;; and then use C-u M-! to run:
+;;
+;; lltags -S 2011-09-09-10-25-00_10-30-12_111905405_Audio_W48_Scheduling_Conference.flac
+;;
+;; ... and it inserts the file's name and the flac metadata, which
+;; I've set for each file, giving casename, courtroom, casenumber,
+;; date, hearingtype, start, and end times, most of which is also
+;; encoded in the file-name, which is designed so they sort
+;; chronographically. I delete the : from the end of the file-name it
+;; prints, put # at the start of each line in case I want to strip
+;; that header from a munged copy used for pretty presentation,
+;; perhaps run through a script and LaTeX'd, and format the heading
+;; nicely to make it readable, with = aligned...
+;;
+;; Now I can put the cursor on the file name, and use:
+;;    M-x mplayer-find-file-at-point to begin playback.
+;;
+;; I determine and enter a key at the top, giving Judge, Victim
+;; Advocate, Prosecutor, Defender, and Defendant, but during the part
+;; where they announce their appearances at the start of the
+;; hearing. To begin with, I type:
+;;
+;; C-x SPC SPC to pause the audio, then at the bottom of the file, the
+;; start of the new transcript text, I enter:
+;;
+;; (0.0) F11    using my macro to seek to the start of the file.
+                                        
+;; And then C-x SPC i to insert the timestamp for the start of the
+;; hearing, and check to be sure it's right, properly adjusted to the
+;; correct time of day for the hearing start.
+;;
+;; Any time there's a new speaker, I use C-x SPC h to insert a
+;; location and a timestamp, then I enter the person's designation,
+;; eg. Judge: blah blah what she said here.  Any time I need to jump
+;; back, to the beginning of the utterance I can push F11. I can
+;; insert a position using C-x SPC t, to set points where I can jump
+;; back to, to hear it again. To get the right setting for the start
+;; of an utterance, I use C-x SPC t, then listen to it, and adjust the
+;; number manually to hit the desired spot in the audio file. With it
+;; paused and F11 pushed to seek to the point indicated by the
+;; position marker, I then use C-x SPC i to insert the
+;; timestamp. Sometimes there's enough time to listen to the tail of
+;; the utterance, with C-x SPC pressed, and my finger poised above the
+;; h key...
+;;
+;; This system works very well and makes it easy to jump back to a
+;; spcecific point in the recording.
+;;
+;; The flac audio format is the only one that this is likely to work
+;; well with aside from wav, since a flac file has an embedded seek
+;; point index. If you try this with an ogg or an mp3, it might not
+;; jump to exactly the same spot each time due to variable bitrate
+;; encoding. With vbr encoded audio, the amount of file space required
+;; to represent a given time length is variable throughout the file,
+;; so there's not a deterministic arithmatic to compute an exact time
+;; offset within the file. That's why flac have seek point indexes in
+;; them!
+
 
 ;; This file is not part of GNU Emacs.
-
+;;
 ;; This is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation; either version 3, or (at your option)
@@ -85,7 +183,14 @@
   :type 'integer
   :group 'mplayer)
 
-(defcustom mplayer-timestamp-format "%H:%M:%S"
+(defcustom mplayer-position-stamp-format "(%s)"
+  "Format used for inserting position stamps.
+It must contain \%s since the position is given as a string where
+this is called."
+  :type 'string
+  :group 'mplayer)
+
+(defcustom mplayer-timestamp-format "[%H:%M:%S.%1N] "
   "Format used for inserting timestamps."
   :type 'string
   :group 'mplayer)
@@ -110,15 +215,38 @@
    ((listp speedstep)
     (/ (* mplayer-default-speed-step (+ 1 (log (abs (car speedstep)) 4))) 100.0))))
 
+(defvar mplayer-file-start-offset 0
+  "Buffer local wall clock offset for start of file, in seconds.")
+(make-variable-buffer-local 'mplayer-file-start-offset)
+
 (defun mplayer--format-time (time)
   "Return a formatted time string, using the format string
 `mplayer-timestamp-format'.  The argument is in seconds, and
-can be an integer or a string."
+can be an integer or a string. If the buffer-local variable
+`mplayer-file-start-offset' is set, that offset is added to
+the argument. Its value must be specified in seconds since
+midnight."
   (message "format-time: %s" time)
   (if (stringp time)
-      (setq time (round (string-to-number time))))
-  (message "time to format: %s" time)
-  (format-time-string mplayer-timestamp-format `(0 ,time 0) t))
+      (setq time (string-to-number time)))
+  (if (stringp mplayer-file-start-offset)
+      (setq mplayer-file-start-offset
+            (string-to-number mplayer-file-start-offset)))
+  (setq time (+ time mplayer-file-start-offset))
+  (message "time to format: %.1f" time)
+  ;; All this truncating and rounding is needed because floating point
+  ;; numbers are not exact, and multiplying by 1000000 amplifies the
+  ;; error, causing the timestamp to end with .6 rather than .7, etc.
+  ;; Multiplying by 10, rounding, then dividing by 10.0 gets it right.
+  (let ((sec (truncate time))
+        (usec (truncate (* 1000000
+                           (/ (round (* 10
+                                        (- time
+                                           (truncate time))))
+                              10.0)))))
+    (format-time-string
+     mplayer-timestamp-format `(0 ,(truncate time) ,usec) t)))
+
 
 ;;; Interactive Commands:
 
@@ -135,6 +263,13 @@ documentation for `mplayer-mode' for available bindings."
                       "-quiet" "-slave"
                       filename))
   (mplayer-mode t))
+
+(defun mplayer-find-file-at-point ()
+  "Start mplayer on the file name at point. Optionally provide
+  base director where the audio file is expected to be located."
+  (interactive)
+  (let ((filename (thing-at-point 'filename)))
+    (mplayer-find-file filename)))
 
 (defun mplayer-toggle-pause ()
   "Pause or play the currently-open recording."
@@ -218,8 +353,26 @@ into the buffer."
        (string-match "^ANS_TIME_POSITION=\\(.*\\)$" output)
        (setq time (match-string 1 output))
        (if time
-           (insert time)
+           (insert (format mplayer-position-stamp-format time))
          (message "MPlayer: couldn't detect current time."))
+       (set-process-filter mplayer-process nil)))
+    ;; Then send the command:
+    (mplayer--send "get_time_pos")))
+
+(defun mplayer-insert-position-and-timestamp ()
+  (interactive)
+  (let (time)
+    (set-process-filter
+     mplayer-process
+     ;; wait for output, process, and remove filter:
+     (lambda (process output)
+       (message "process: %s output: %s" process output)
+       (string-match "^ANS_TIME_POSITION=\\(.*\\)$" output)
+       (setq time (match-string 1 output))
+       (if (not time)
+           (message "MPlayer: couldn't detect current time.")
+         (insert (format mplayer-position-stamp-format time))
+         (insert (mplayer--format-time time)))
        (set-process-filter mplayer-process nil)))
     ;; Then send the command:
     (mplayer--send "get_time_pos")))
@@ -228,8 +381,35 @@ into the buffer."
   "Seek to some place in the recording."
   ;; (interactive "P")
   (interactive "nEnter seek position: ")
-  ;; (message "Seeking to position: %n" position)
-    (mplayer--send (format "seek %d 2" position)))
+  ;; (message "Seeking to position: %d" position)
+    (mplayer--send (format "seek %.1f 2" position)))
+
+;; (bounds-of-thing-at-point 'mplayer-pos)34.9
+;; (thing-at-point 'mplayer-pos)34.9
+
+(put 'mplayer-pos 'bounds-of-thing-at-point
+     (lambda ()
+       (let ((thing (thing-at-point-looking-at "[0-9]+\\.[0-9]" 6)))
+         (if thing
+             (let ((beginning (match-beginning 0))
+                   (end (match-end 0)))
+               (cons beginning end))))))
+
+(put 'mplayer-pos 'thing-at-point
+     (lambda ()
+       (let ((boundary-pair (bounds-of-thing-at-point 'mplayer-pos)))
+         (if boundary-pair
+             (string-to-number
+              (buffer-substring-no-properties
+               (car boundary-pair) (cdr boundary-pair)))))))
+
+
+(defun mplayer-seek-position-at-point ()
+  "Seek to the position represented by the number at point."
+  (interactive)
+  (let ((pos (thing-at-point 'mplayer-pos)))
+    (message "Seeking to position: %.1f" pos)
+    (mplayer--send (format "seek %.1f 2" pos))))
 
 (defun mplayer-quit-mplayer ()
   "Quit mplayer and exit this mode."
@@ -255,9 +435,11 @@ into the buffer."
   (define-key map (kbd "s")       'mplayer-slower)
   (define-key map (kbd "r")       'mplayer-reset-speed)
   (define-key map (kbd "p")       'mplayer-seek-position)
+  (define-key map (kbd "g")       'mplayer-seek-position-at-point)
   (define-key map (kbd "t")       'mplayer-insert-position)
   (define-key map (kbd "d")       'mplayer-toggle-osd)
   (define-key map (kbd "i")       'mplayer-insert-timestamp)
+  (define-key map (kbd "h")       'mplayer-insert-position-and-timestamp)
   (define-key map (kbd "q")       'mplayer-quit-mplayer)
 
   (define-key mplayer-mode-map mplayer-prefix-command map))
