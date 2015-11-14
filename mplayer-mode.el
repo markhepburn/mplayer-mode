@@ -26,6 +26,81 @@
 ;; ... so that the time stamps reflect the actual time of day when the
 ;; recording was made. Obviously that only works when you have that
 ;; information, as for a court recording.
+;;
+;; Suggestions for using this mode:
+;;
+;; In my .emacs, I have:
+;;
+;; (autoload 'mplayer-find-file "mplayer-mode" "Control mplayer from within Emacs")
+;; (autoload 'mplayer-find-file-at-point "mplayer-mode" "Control mplayer from within Emacs")
+;; (require 'mplayer-mode)
+;; (fset 'mplayer-jump-to-start-of-this-block
+;;    [?\C-\M-r ?\( ?\[ ?0 ?- ?9 ?\] right ?\C-x ?  ?g ?\C-u ?\C- ])
+;; (define-key text-mode-map (kbd "<f11>") #'mplayer-jump-to-start-of-this-block)
+;;
+;; I would have created an interactive function for the jump to start
+;; of block, except that the format of a "position" is configurable,
+;; so I could not hard-code the isearch backward regexp expression
+;; this macro uses.
+;;
+;; When I open a new transcription file, I insert the mode heading,
+;; and then use C-u M-! to run:
+;;
+;; lltags -S 2011-09-09-10-25-00_10-30-12_111905405_Audio_W48_Scheduling_Conference.flac
+;;
+;; ... and it inserts the file's name and the flac metadata, which
+;; I've set for each file, giving casename, courtroom, casenumber,
+;; date, hearingtype, start, and end times, most of which is also
+;; encoded in the file-name, which is designed so they sort
+;; chronographically. I delete the : from the end of the file-name it
+;; prints, put # at the start of each line in case I want to strip
+;; that header from a munged copy used for pretty presentation,
+;; perhaps run through a script and LaTeX'd, and format the heading
+;; nicely to make it readable, with = aligned...
+;;
+;; Now I can put the cursor on the file name, and use:
+;;    M-x mplayer-find-file-at-point to begin playback.
+;;
+;; I determine and enter a key at the top, giving Judge, Victim
+;; Advocate, Prosecutor, Defender, and Defendant, but during the part
+;; where they announce their appearances at the start of the
+;; hearing. To begin with, I type:
+;;
+;; C-x SPC SPC to pause the audio, then at the bottom of the file, the
+;; start of the new transcript text, I enter:
+;;
+;; (0.0) F11    using my macro to seek to the start of the file.
+                                        
+;; And then C-x SPC i to insert the timestamp for the start of the
+;; hearing, and check to be sure it's right, properly adjusted to the
+;; correct time of day for the hearing start.
+;;
+;; Any time there's a new speaker, I use C-x SPC h to insert a
+;; location and a timestamp, then I enter the person's designation,
+;; eg. Judge: blah blah what she said here.  Any time I need to jump
+;; back, to the beginning of the utterance I can push F11. I can
+;; insert a position using C-x SPC t, to set points where I can jump
+;; back to, to hear it again. To get the right setting for the start
+;; of an utterance, I use C-x SPC t, then listen to it, and adjust the
+;; number manually to hit the desired spot in the audio file. With it
+;; paused and F11 pushed to seek to the point indicated by the
+;; position marker, I then use C-x SPC i to insert the
+;; timestamp. Sometimes there's enough time to listen to the tail of
+;; the utterance, with C-x SPC pressed, and my finger poised above the
+;; h key...
+;;
+;; This system works very well and makes it easy to jump back to a
+;; spcecific point in the recording.
+;;
+;; The flac audio format is the only one that this is likely to work
+;; well with aside from wav, since a flac file has an embedded seek
+;; point index. If you try this with an ogg or an mp3, it might not
+;; jump to exactly the same spot each time due to variable bitrate
+;; encoding. With vbr encoded audio, the amount of file space required
+;; to represent a given time length is variable throughout the file,
+;; so there's not a deterministic arithmatic to compute an exact time
+;; offset within the file. That's why flac have seek point indexes in
+;; them!
 
 
 ;; This file is not part of GNU Emacs.
@@ -106,6 +181,13 @@
 (defcustom mplayer-osd-level 3
   "OSD level used by mplayer.  3 (the default) means position/length."
   :type 'integer
+  :group 'mplayer)
+
+(defcustom mplayer-position-stamp-format "(%s)"
+  "Format used for inserting position stamps.
+It must contain \%s since the position is given as a string where
+this is called."
+  :type 'string
   :group 'mplayer)
 
 (defcustom mplayer-timestamp-format "[%H:%M:%S.%1N] "
@@ -271,7 +353,7 @@ into the buffer."
        (string-match "^ANS_TIME_POSITION=\\(.*\\)$" output)
        (setq time (match-string 1 output))
        (if time
-           (insert time)
+           (insert (format mplayer-position-stamp-format time))
          (message "MPlayer: couldn't detect current time."))
        (set-process-filter mplayer-process nil)))
     ;; Then send the command:
@@ -287,13 +369,10 @@ into the buffer."
        (message "process: %s output: %s" process output)
        (string-match "^ANS_TIME_POSITION=\\(.*\\)$" output)
        (setq time (match-string 1 output))
-       (if time
-           (progn
-             (insert "(")
-             (insert time)
-             (insert ")")
-             (insert (mplayer--format-time time)))
-         (message "MPlayer: couldn't detect current time."))
+       (if (not time)
+           (message "MPlayer: couldn't detect current time.")
+         (insert (format mplayer-position-stamp-format time))
+         (insert (mplayer--format-time time)))
        (set-process-filter mplayer-process nil)))
     ;; Then send the command:
     (mplayer--send "get_time_pos")))
