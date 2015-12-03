@@ -19,7 +19,7 @@
 ;; `mplayer-file-start-offset' buffer-local in seconds since midnight.
 ;;
 ;; When I do a transcription, I put the audio file's name at the top
-;; of the file, and also a heading, like:
+;; of the file, and also a heading, like: 
 ;;
 ;; # -*- mode: text; mplayer-file-start-offset: 40430; -*-
 ;;
@@ -218,6 +218,7 @@ this is called."
 (defvar mplayer-file-start-offset 0
   "Buffer local wall clock offset for start of file, in seconds.")
 (make-variable-buffer-local 'mplayer-file-start-offset)
+(put 'mplayer-file-start-offset 'safe-local-variable #'identity)
 
 (defun mplayer--format-time (time)
   "Return a formatted time string, using the format string
@@ -427,7 +428,8 @@ into the buffer."
   (setq mplayer-mode-map (make-sparse-keymap)))
 
 (let ((map (make-sparse-keymap)))
-  ;; (define-key map (kbd "f")       'mplayer-find-file)
+  ;;(define-key map (kbd "C-x C-f") 'mplayer-find-file)
+  ;;(define-key map [mouse-1]       'mplayer-find-file-at-point)
   (define-key map (kbd "SPC")     'mplayer-toggle-pause)
   (define-key map (kbd "<right>") 'mplayer-seek-forward)
   (define-key map (kbd "<left>")  'mplayer-seek-backward)
@@ -443,6 +445,11 @@ into the buffer."
   (define-key map (kbd "q")       'mplayer-quit-mplayer)
 
   (define-key mplayer-mode-map mplayer-prefix-command map))
+
+;;; This is putting a keybinding into somebody else's keymap... But we
+;;; want that only when this mode is loaded, so why not? What are the
+;;; odds of it clashing with another keybinding really?
+(define-key text-mode-map (kbd "C-x SPC C-x C-f") 'mplayer-find-file-at-point)
 
 (define-minor-mode mplayer-mode
   "Control mplayer from within Emacs.  Mainly intended for
