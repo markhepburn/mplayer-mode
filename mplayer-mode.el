@@ -19,7 +19,7 @@
 ;; `mplayer-file-start-offset' buffer-local in seconds since midnight.
 ;;
 ;; When I do a transcription, I put the audio file's name at the top
-;; of the file, and also a heading, like: 
+;; of the file, and also a heading, like:
 ;;
 ;; # -*- mode: text; mplayer-file-start-offset: 40430; -*-
 ;;
@@ -70,7 +70,7 @@
 ;; start of the new transcript text, I enter:
 ;;
 ;; (0.0) F11    using my macro to seek to the start of the file.
-                                        
+
 ;; And then C-x SPC i to insert the timestamp for the start of the
 ;; hearing, and check to be sure it's right, properly adjusted to the
 ;; correct time of day for the hearing start.
